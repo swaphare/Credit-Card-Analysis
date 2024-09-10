@@ -1,0 +1,72 @@
+---
+title: "PCA Codes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readr)
+library(plyr)
+library(dplyr)
+library(plotly)
+library(readr)
+library(ggplot2)
+library(ggbiplot)
+
+
+```
+
+
+
+
+```{r}
+dataset = read_csv("Customer Data.csv")
+
+dataset_omitted = na.omit(dataset)
+dataset_reduced = dataset_omitted[,-1]
+
+
+#PCA Model of the data set
+pca_model <- prcomp(dataset_reduced, scale=TRUE)
+
+#Scree Plot
+pve= 100 * pca_model$sdev^2 / sum(pca_model$sdev^2)
+
+par(mfrow = c(1, 2))
+plot(pve,  type = "o", ylab = "PVE",
+    xlab = "Principal Component", col = "blue")
+
+plot(cumsum(pve), type = "o", ylab = "Cumulative PVE",
+    xlab = "Principal Component", col = "brown3")
+
+ggplotly(ggbiplot(pca_model,scale = 0,labels=rownames(pca_model$x)))
+
+```
+
+```{r}
+
+dataset_reduced_new = dataset_omitted[,c(2,3,4,5,6,7,8)]
+
+
+pca_model_new <- prcomp(dataset_reduced_new, scale=TRUE)
+
+#Scree Plot
+pve_new = 100 * pca_model_new$sdev^2 / sum(pca_model_new$sdev^2)
+
+par(mfrow = c(1, 2))
+plot(pve_new,  type = "o", ylab = "PVE",
+    xlab = "Principal Component", col = "blue")
+
+plot(cumsum(pve_new), type = "o", ylab = "Cumulative PVE",
+    xlab = "Principal Component", col = "brown3")
+
+ggplotly(ggbiplot(pca_model_new,scale = 0,labels=rownames(pca_model_new$x)))
+
+
+
+```
+

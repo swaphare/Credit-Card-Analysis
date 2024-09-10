@@ -1,0 +1,160 @@
+|                        |
+|------------------------|
+| title: "SDMII_Project" |
+| output: html_document  |
+| date: "2022-12-06"     |
+
+```{r}
+library(plotly)
+library(mclust)
+library(ggplot2)
+library("fpc")
+library("factoextra")
+library(NbClust)
+```
+
+```{r}
+project_df = read.csv("C:\\Users\\vpara\\Documents\\Customer_Data.csv")
+project_df = subset(project_df, select = -c(CUST_ID)) # drop un-necessary columns
+```
+
+# Identify Missing Values and duplicate elemensts in Dataset
+
+```{r}
+print(paste("Missing Elements in dataframe: ",sum(is.na(project_df))))
+print(paste("Duplicate Elements in dataframe: ",sum(duplicated(project_df))))
+```
+
+```{r}
+# Replace all NA with respective column mean
+for(i in 1:ncol(project_df)) {                                   
+  project_df[ , i][is.na(project_df[ , i])] <- mean(project_df[ , i], na.rm = TRUE)
+}
+print(paste("The missing values after handling are : ",sum(is.na(project_df))))
+```
+
+```{r}
+Model_Data_std <- scale(project_df)
+pca1<-prcomp(Model_Data_std)
+pca1
+```
+
+```{r}
+summary(pca1)
+```
+
+```{r}
+fviz_pca_biplot(pca1, 
+                axes = c(1:2), 
+                col.var = "orange",
+                col.ind = "springgreen",
+                labelsize = 3) +
+                labs(title = "Biplot of PC1 and PC2")
+```
+
+```{r}
+fviz_pca_biplot(pca1, 
+                axes = c(1:2), 
+                col.var = "orange",
+                col.ind = "red",
+                labelsize = 3,
+                select.ind = list(contrib = 5)) +
+                labs(title = "Outlier of PC1 and PC2")
+```
+
+
+
+
+
+```{r}
+pca1$sdev/sum(pca1$sdev)
+loads<-pca1$rotation
+View(loads)
+scores<-pca1$x
+View(scores)
+#Select number of PCs
+plot(pca1$sdev)
+(pca1$sdev[1]+pca1$sdev[2]+pca1$sdev[3]+pca1$sdev[4]+pca1$sdev[5]+pca1$sdev[6]+pca1$sdev[7]+pca1$sdev[8])/sum(pca1$sdev)
+
+#VIP Calculation
+#update loadings w/ reduced no. of PCs
+loads_vip<-loads[,1:6]
+property_vip<-loads_vip[1,]
+features_vip<-loads_vip[2:16,]
+weight_vip<-property_vip*features_vip
+#no. of weights should be equal to number of PCs included
+vip<-weight_vip[,1]+weight_vip[,2]
+barplot(vip)
+```
+
+```{r}
+pca_df <- subset(scores, select = c(PC1,PC2))
+head(pca_df)
+```
+
+```{r}
+# Elbow method
+fviz_nbclust(Model_Data_std, kmeans, method = "wss") +
+    geom_vline(xintercept = 4, linetype = 2)+
+  labs(subtitle = "Elbow method")
+```
+
+```{r}
+# Silhouette method
+fviz_nbclust(Model_Data_std, kmeans, method = "silhouette")+
+  labs(subtitle = "Silhouette method")
+```
+
+```{r}
+# choose k=7
+(cl <- kmeans(Model_Data_std, 7))
+pca_df_kmeans <- data.frame(cbind(pca_df, clusterNum = cl$cluster))
+```
+```{r}
+ggplot() +
+  geom_point(data = pca_df_kmeans, 
+             mapping = aes(x = PC1,y = PC2,colour = factor(clusterNum)))
+
+```
+
+```{r}
+# Overlap with k=7, so adjust to k=6
+(cl_k7 <- kmeans(Model_Data_std, 6))
+fviz_cluster(cl_k7, Model_Data_std, palette = "Set1")
+```
+
+# DENSITY BASED CLUSTERING
+
+```{r}
+# Density Based Clustering
+# Finding the optimal eps value
+dbscan::kNNdistplot(pca_df, k = 20)
+abline(h = 0.15, lty = 2)
+```
+
+```{r}
+db <- fpc::dbscan(pca_df, eps = 0.15, MinPts = 20)
+fviz_cluster(db, pca_df, stand = FALSE, frame = FALSE, geom = "point")
+```
+
+# MODEL BASED CLUSTERING
+
+```{r}
+#Model/ Distribution Based Clustering
+set.seed(450)
+mb <- Mclust(Model_Data_std, G=1:6, 
+                  modelNames = mclust.options("emModelNames"))
+mb$BIC
+plot(mb$BIC)
+```
+
+```{r}
+pca_df_mb <- data.frame(cbind(pca_df, clusterNum = mb$classification))
+head(pca_df_mb)
+```
+
+```{r}
+ggplot() +
+  geom_point(data = pca_df_mb, 
+             mapping = aes(x = PC1,y = PC2,colour = factor(clusterNum)))
+```
